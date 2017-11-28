@@ -130,14 +130,46 @@ class Course(views.APIView):
         return JsonResponse(course_data)
 
 
-class create_password(views.APIView):
+class Create_password(views.APIView):
     def post(self, request, *args, **kwargs):
         user = request.data.get("user")
-        pwd = request.data.get("pwd")
-        email = request.data.get("email")
+        pwd = request.data.get("course_id")
+        email = request.data.get("pricePolicy_id")
         password = make_password(pwd)
         models.UserInfo.objects.create(user=user, pwd=password, email=email)
         return JsonResponse("OK", safe=False)
 
     def get(self, request, *args, **kwargs):
+        pass
+
+shopping_cart = {}
+
+
+class ShoppingCart(views.APIView):
+    def get(self, request, *args, **kwargs):
+
+        pass
+    def post(self, request, *args, **kwargs):
+        user = request.data.get('user')
+        course_id = request.data.get('course_id')
+        pricepolicy_id = request.data.get('pricePolicy_id')
+        try:
+            pricepolicy_obj = models.PricePolicy.objects.filter(pk=pricepolicy_id).first()
+            course_obj=models.Course.objects.filter(pk=course_id).first()
+            shopping_cart[user] = {course_obj.pk:{
+
+                'name':course_obj.name,
+                'img':course_obj.course_img,
+
+
+            }
+                                   }
+
+
+
+    def delete(self, request, *args, **kwargs):
+
+        pass
+    def put(self, request, *args, **kwargs):
+
         pass

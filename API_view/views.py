@@ -142,7 +142,19 @@ class Create_password(views.APIView):
     def get(self, request, *args, **kwargs):
         pass
 
+
+#######################购物车相关##############
+
 shopping_cart = {}
+
+
+class PricePolicySerializer(serializers.ModelSerializer):
+
+    name = serializers.CharField(source="get_valid_period_display")
+    class Meta:
+        model = models.PricePolicy
+        fields = ['id', 'price', 'name']
+
 
 
 class ShoppingCart(views.APIView):
@@ -150,20 +162,42 @@ class ShoppingCart(views.APIView):
 
         pass
     def post(self, request, *args, **kwargs):
-        user = request.data.get('user')
-        course_id = request.data.get('course_id')
-        pricepolicy_id = request.data.get('pricePolicy_id')
-        try:
-            pricepolicy_obj = models.PricePolicy.objects.filter(pk=pricepolicy_id).first()
-            course_obj=models.Course.objects.filter(pk=course_id).first()
+        ret = {"code": 1000, "msg": None}
+        user = request.POST.get('user')
+        course_id = request.POST.get('course_id')
+        pricepolicy_id = request.POST.get('pricepolicy_id')
+        print(course_id, user, pricepolicy_id)
+        # try:
+        pricepolicy_obj = models.PricePolicy.objects.filter(pk=pricepolicy_id).first()
+        course_obj=models.Course.objects.filter(pk=course_id).first()
+        if pricepolicy_obj.content_object == course_obj:
+            """
+            判断课程是否有这个价格
+            """
+            pricepolicy_list = course_obj.price_policy.all()
+            pricepolicy_list = PricePolicySerializer(instance=pricepolicy_list, many=True)
+
             shopping_cart[user] = {course_obj.pk:{
 
                 'name':course_obj.name,
                 'img':course_obj.course_img,
-
-
+                'pricepolicy_id': pricepolicy_id,
+                'policy_list': pricepolicy_list.data
+                }
             }
-                                   }
+            ret['msg'] = '添加成功'
+
+
+        else:
+            ret['code'] = 1001
+            ret['msg'] = '没有这个价格'
+        # except Exception as e:
+        #     ret['code'] = 1001
+        #     print(e)
+        #     ret['code'] = '错误'
+        print(shopping_cart)
+        response = JsonResponse(ret)
+        return response
 
 
 

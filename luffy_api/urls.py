@@ -19,7 +19,7 @@ from API_view import views
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^api/(?P<version>\w+)/auth/$', views.AuthView.as_view(), name='auth'),
-    url(r'^(?P<version>\w+)/cr/$', views.create_password.as_view(), name='yyyy'),
+    url(r'^(?P<version>\w+)/cr/$', views.Create_password.as_view(), name='yyyy'),
     url(r'^api/(?P<version>\w+)/course/$', views.Course.as_view(), name='course'),
     url(r'^api/(?P<version>\w+)/course/(?P<pk>\d+)/$', views.Course.as_view(), name='course'),
     url(r'^api/(?P<version>\w+)/shopping_cart/$', views.ShoppingCart.as_view(), name='shopping_cart'),

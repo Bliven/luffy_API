@@ -15,8 +15,7 @@ Including another URLconf
 """
 from django.conf.urls import url
 from django.contrib import admin
-from API import views
-
+from API_view import views
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^api/(?P<version>\w+)/auth/$', views.AuthView.as_view(), name='auth'),

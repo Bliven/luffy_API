@@ -1,4 +1,3 @@
-
 from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Q
@@ -6,14 +5,8 @@ from django.utils.safestring import mark_safe
 from django.db import models
 import hashlib
 
-# Create your models here.
-class UserInfo(models.Model):
-    user = models.CharField(max_length=32)
-    pwd = models.CharField(max_length=64)
-    email = models.CharField(max_length=64)
-
 class Token(models.Model):
-    user = models.OneToOneField(UserInfo)
+    user = models.OneToOneField("Account")
     token = models.CharField(max_length=64)
 
 from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation

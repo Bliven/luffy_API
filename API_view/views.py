@@ -41,9 +41,8 @@ class AuthView(views.APIView):
         user = request.data.get("user")
         pwd = request.data.get("pwd")
         # password = make_password(pwd)
-        user_obj = models.UserInfo.objects.filter(user=user).first()
-        check_pwd = check_password(pwd, user_obj.pwd)
-        if check_pwd:
+        user_obj = models.Account.objects.filter(username=user,password=pwd).first()
+        if user_obj:
             tk = gen_token(user)
             models.Token.objects.get_or_create(user=user_obj, defaults={"token": tk})
             ret["code"] = 1001
@@ -132,17 +131,27 @@ class Course(views.APIView):
         return JsonResponse(course_data)
 
 
+
 class Create_password(views.APIView):
     def post(self, request, *args, **kwargs):
         user = request.data.get("user")
         pwd = request.data.get("course_id")
         email = request.data.get("pricePolicy_id")
         password = make_password(pwd)
-        models.UserInfo.objects.create(user=user, pwd=password, email=email)
+        models.Account.objects.create(user=user, pwd=password, email=email)
         return JsonResponse("OK", safe=False)
 
-    def get(self, request, *args, **kwargs):
+
+
+class OrderClear(views.APIView):
+    def post(self,request,*args,**kwargs):
+        goods=[{"course_id":1,"policy_id":1},{"course_id":2,"policy_id":2}]
+        self.verify(goods)
+    def verify(self,data):
         pass
+    def get_data(self):
+        pass
+
 
 
 #######################购物车相关##############
@@ -306,8 +315,3 @@ class ShoppingCart(views.APIView):
 
 
 
-class OrderClear(views.APIView):
-    authentication_classes = [MyAuthentication, ]
-
-    def get(self, request, *args, **kwargs):
-        user_id = request.user.id

@@ -22,6 +22,8 @@ urlpatterns = [
     url(r'^(?P<version>\w+)/cr/$', views.Create_password.as_view(), name='yyyy'),
     url(r'^api/(?P<version>\w+)/course/$', views.Course.as_view(), name='course'),
     url(r'^api/(?P<version>\w+)/course/(?P<pk>\d+)/$', views.Course.as_view(), name='course'),
+
     url(r'^api/(?P<version>\w+)/shopping_cart/$', views.ShoppingCart.as_view(), name='shopping_cart'),
+
     url(r'^api/(?P<version>\w+)/orderclear/$', views.OrderClear.as_view(), name='orderclear'),
 ]

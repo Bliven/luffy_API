@@ -179,6 +179,7 @@ class ShoppingCart(views.APIView):
         :return: 
         """
         user_id = request.user.id
+        print(user_id)
         user_cart_list = rediser.get('shopping_list', user_id)
         if user_cart_list:
 
@@ -215,6 +216,7 @@ class ShoppingCart(views.APIView):
             dic = {'name': course_obj.name,
                     'img': course_obj.course_img,
                     'pricepolicy_id': pricepolicy_id,
+                    'price':pricepolicy_obj.price,
                     'policy_list': list(pricepolicy_list.data)
              }
 
@@ -263,6 +265,7 @@ class ShoppingCart(views.APIView):
                 user_cart_dict.pop(item)
         elif kind == 'both':
             print(kind)
+            print(user_id)
             rediser.delete('shopping_list', user_id)
         else:
             ret['code'] = 1001

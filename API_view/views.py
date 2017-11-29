@@ -172,9 +172,6 @@ class ShoppingCart(views.APIView):
         :return: 
         """
         user_id = request.user.id
-        print(user_id)
-        print(request.user)
-        print(type(request.user))
         user_cart_dict = rediser.get('shopping_cart', user_id)
         user_cart_dict = json.loads(user_cart_dict.decode('utf-8'))
         return JsonResponse(user_cart_dict)

@@ -133,8 +133,8 @@ REST_FRAMEWORK = {
     "VERSION_PARAM":"version",
     "DEFAULT_VERSION":'v1',
     "ALLOWED_VERSIONS":['v1','v2'],
-    # "UNAUTHENTICATED_USER":None,
-    # "UNAUTHENTICATED_TOKEN":None,
+    "UNAUTHENTICATED_USER":None,
+    "UNAUTHENTICATED_TOKEN":None,
     # # "DEFAULT_AUTHENTICATION_CLASSES":[
     # #     #"app01.views.CustomAuthentication",
     # # ],
@@ -144,3 +144,13 @@ REST_FRAMEWORK = {
     # }
 
 }
+# CACHES = {
+#     "default": {
+#         "BACKEND": "django_redis.cache.RedisCache",
+#         "LOCATION": "redis://65.49.195.128:6379/1",
+#         "OPTIONS": {
+#             "CLIENT_CLASS": "django_redis.client.DefaultClient",
+#             "CONNECTION_POOL_KWARGS": {"max_connections": 100},
+#         }
+#     }
+# }

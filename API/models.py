@@ -6,7 +6,7 @@ from django.db import models
 import hashlib
 
 class Token(models.Model):
-    user = models.OneToOneField(Account)
+    user = models.OneToOneField("Account")
     token = models.CharField(max_length=64)
 
 class CourseCategory(models.Model):

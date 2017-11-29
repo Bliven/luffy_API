@@ -2,7 +2,6 @@ from django.shortcuts import render
 from API.repertory_api import search
 
 # Create your views here.
-from django.contrib.auth.hashers import make_password, check_password
 from django.http import JsonResponse
 from rest_framework import views, serializers, fields
 from django.core.exceptions import ObjectDoesNotExist
@@ -40,9 +39,8 @@ class AuthView(views.APIView):
         user = request.data.get("user")
         pwd = request.data.get("pwd")
         # password = make_password(pwd)
-        user_obj = models.Account.objects.filter(user=user).first()
-        check_pwd = check_password(pwd, user_obj.password)
-        if check_pwd:
+        user_obj = models.Account.objects.filter(username=user,password=pwd).first()
+        if user_obj:
             tk = gen_token(user)
             models.Token.objects.get_or_create(user=user_obj, defaults={"token": tk})
             ret["code"] = 1001
@@ -131,22 +129,14 @@ class Course(views.APIView):
         return JsonResponse(course_data)
 
 
-# class create_password(views.APIView):
-#     def post(self, request, *args, **kwargs):
-#         user = request.data.get("user")
-#         pwd = request.data.get("pwd")
-#         email = request.data.get("email")
-#         password = make_password(pwd)
-#         models.Account.objects.create(user=user, pwd=password, email=email)
-#         return JsonResponse("OK", safe=False)
-#
-#     def get(self, request, *args, **kwargs):
-#         pass
 
 class OrderClear(views.APIView):
-    def post(self, request, *args, **kwargs):
+    def post(self,request,*args,**kwargs):
+        goods=[{"course_id":1,"policy_id":1},{"course_id":2,"policy_id":2}]
+        self.verify(goods)
+    def verify(self,data):
         pass
-    def get_data(self, request, *args, **kwargs):
+    def get_data(self,request,*args,**kwargs):
         res = []
         for course in request.data:
             id = course.get('course_id')

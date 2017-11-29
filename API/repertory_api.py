@@ -72,7 +72,7 @@ class MyCharField(serializers.CharField):
        return '77777'
 info=MyCharField()
 
-def func(*args,**kwargs):
+def func(self,obj):
     return '66666'
 data_l =models.Account.objects.all()
 
@@ -165,14 +165,14 @@ class Search(object):
             from django.db.models.query import QuerySet
             if not isinstance(data,QuerySet):
                 data = md_obj.objects.all()
-            print(type(data))
+            # print(type(data))
             ModelSerializer = self.__gen_serilizer(md_obj,fields=fields,
                                                    extra_fields=extra_fields,
                                                    extra_fields_info=extra_fields_info,
                                                    serializerMDF=serializerMDF)      # 动态序列化类
 
             ser = ModelSerializer(instance=data,many=True)
-            ser_data = ser.data[0]
-            return ser_data
+
+            return ser.data
 
 search=Search()

@@ -1,5 +1,7 @@
 from django.shortcuts import render
 from API.repertory_api import search
+import json
+from django.forms.models import model_to_dict  # ^^^^^^
 
 # Create your views here.
 from django.http import JsonResponse
@@ -39,7 +41,7 @@ class AuthView(views.APIView):
         user = request.data.get("user")
         pwd = request.data.get("pwd")
         # password = make_password(pwd)
-        user_obj = models.Account.objects.filter(username=user,password=pwd).first()
+        user_obj = models.Account.objects.filter(username=user, password=pwd).first()
         if user_obj:
             tk = gen_token(user)
             models.Token.objects.get_or_create(user=user_obj, defaults={"token": tk})
@@ -125,27 +127,143 @@ class Course(views.APIView):
         except Exception as e:
             course_data["code"] = 1002
             course_data["msg"] = "查询课程失败！"
-        print("______course_data",course_data)
+        print("______course_data", course_data)
         return JsonResponse(course_data)
 
 
+class RedisHelper(object):
+    def __init__(self):
+        import redis
+
+        pool = redis.ConnectionPool(host='65.49.195.128', port=6379)
+        conn = redis.Redis(connection_pool=pool)
+        self.conn = conn
+
+    def set(self, name, k, v):
+        self.conn.hset(name, k, v)
+
+    def delete(self, name, k):
+        self.conn.hdel(name, k)
+
+    def get(self, name, k):
+        return self.conn.hget(name, k)
+
+
+rediser = RedisHelper()
+
 
 class OrderClear(views.APIView):
-    def post(self,request,*args,**kwargs):
-        goods=[{"course_id":1,"policy_id":1},{"course_id":2,"policy_id":2}]
+    # def post(self,request,*args,**kwargs):  # -------------------------------------TTTTTTTTTTT
+    def get(self, request, *args, **kwargs):  # -------------------------------------TTTTTTTTTTT
+        goods = [{"course_id": 1, "policy_id": 1}, ]
         self.verify(goods)
-    def verify(self,data):
+        rediser.set('OrderClear', request.user.id, self.get_data(goods, request))
+        print(rediser.get('OrderClear', request.user.id, ), '-----------------')
+        return JsonResponse({'re': '666'})
+
+    def post(self, request, *args, **kwargs):
+        order = request.data
+        order = [{'course_id': 1,
+                  'price_policy_id': 1,
+                  'coupon': {
+                      'normal_coupon': 2,
+                      'course_coupon': 3},
+                  'score': True}]
+
+    def verify(self, data):
         pass
-    def get_data(self,request,*args,**kwargs):
+
+    def get_data(self, goods, request, *args, **kwargs):
+        '''
+        购物车过来合法数据之后，取出课程和相关优惠券
+        :param goods:
+        :param request:
+        :param args:
+        :param kwargs:
+        :return:
+        '''
+        # ------ 通用优惠券 ----------
+        user_obj = models.Account.objects.get(id=1)  # ------------------------------TTTTTest
+        # user_obj=request.user                      # -------------------------------------TTTTTTTTTTT
+        all_coupon_rd_qset = user_obj.couponrecord_set.all().select_related('coupon')
+        normal_coupon_l = []
+        for cprd_obj in all_coupon_rd_qset:
+            if cprd_obj.status == 0 and not cprd_obj.coupon.object_id:  # 取用户有的优惠券
+                d = model_to_dict(cprd_obj.coupon)
+                d['open_date'] = str(d.get('open_date'))
+                d['close_date'] = str(d.get('close_date'))
+                normal_coupon_l.append(d)
+        user_info = [{'normal_coupon': normal_coupon_l}]
+
+        # ------ 贝里 ----------
+
+        score_records = user_obj.transactionrecord_set.all()
+        score = score_records[len(score_records) - 1].balance
+        user_info[0]['score'] = score
+
+        # ------ 课程优惠券以及其他 ----------
+
+        def func_pp(self, obj):  # price_policy 查询使用
+            price_p = obj.price_policy.all()
+            for l in goods:
+                if l['course_id'] == obj.id:
+                    plc_obj = price_p.get(id=l["policy_id"])
+                    re = {'id': plc_obj.id, 'price': plc_obj.price, 'valid_period': plc_obj.valid_period}
+                    return re
+
+        def func_coupon(self, obj):  # coupon 查询使用
+            course_coupon = obj.coupon.all()
+            course_cp_l = []
+            for cp_obj in course_coupon.filter(id__in=all_coupon_rd_qset.values_list('id')):  # 取课程特定优惠券
+                d = model_to_dict(cp_obj)
+                d['open_date'] = str(d.get('open_date'))
+                d['close_date'] = str(d.get('close_date'))
+                course_cp_l.append(d)
+            return course_cp_l
+
         res = []
-        for course in request.data:
+        for course in goods:
             id = course.get('course_id')
-            if id :
+            if id:
                 res.append(id)
+
         data_list = models.Course.objects.filter(id__in=res)
-        data = search.instance_serilize(instance='Course',data=data_list,
-                                        fields=['id','name','course_img','price_policy'],
-                                        extra_fields=['PricePolicy_price','PricePolicy_valid_period'],
-                                        extra_fields_info=['price_policy.price','price_policy.get_valid_period_display'],
+        data = search.instance_serilize(instance='Course', data=data_list,
+                                        fields=['id', 'name', 'course_img', 'price_policy', 'course_coupon', ],
+                                        serializerMDF={'price_policy': func_pp, 'course_coupon': func_coupon,}
                                         )
-        return data
+        """
+        # 返回数据的大致格式
+        [
+            {"normal_coupon":
+                [
+                    {"id": 1, "name": "\\u6d4b\\u8bd5\\u901a\\u7528\\u52381",
+                     "brief": "\\u6d4b\\u8bd5\\u901a\\u7528\\u52381",
+                     "coupon_type": 0, "money_equivalent_value": 10, "off_percent": null, "minimum_consume": 0,
+                     "content_type": null, "object_id": null, "quantity": 10000000, "open_date": "2017-11-01",
+                     "close_date": "2018-06-01", "valid_begin_date": null, "valid_end_date": null,
+                     "coupon_valid_days": null},
+
+                    {"id": 2, "name": "\\u6d4b\\u8bd5\\u901a\\u7528\\u52382",
+                     "brief": "\\u6d4b\\u8bd5\\u901a\\u7528\\u52382",
+                     "coupon_type": 1, "money_equivalent_value": 10, "off_percent": null, "minimum_consume": 100,
+                     "content_type": null, "object_id": null, "quantity": 1000000, "open_date": "2017-11-01",
+                     "close_date": "2018-07-06", "valid_begin_date": null, "valid_end_date": null,
+                     "coupon_valid_days": null}
+                ],
+
+                "score": 100},
+
+            {"id": 1, "name": "21\\u5929\\u5b66\\u4f1apython", "course_img": "/src/assets/course-1.png",
+             "price_policy": {"id": 1, "price": 9.9, "valid_period": 30},
+             "course_coupon":
+                 [
+                     {"id": 3, "name": "\\u8bfe\\u7a0b\\u6d4b\\u8bd5\\u52381",
+                      "brief": "\\u8bfe\\u7a0b\\u6d4b\\u8bd5\\u52381", "coupon_type": 0, "money_equivalent_value": 20,
+                      "off_percent": null, "minimum_consume": 0, "content_type": 9, "object_id": 1, "quantity": 10,
+                      "open_date": "2017-11-29", "close_date": "2018-05-04", "valid_begin_date": null,
+                      "valid_end_date": null, "coupon_valid_days": null}
+                 ]}
+        ]
+        """
+        return json.dumps(user_info + data)

@@ -129,10 +129,10 @@ CORS_ALLOW_CREDENTIALS = True
 
 STATIC_URL = '/static/'
 REST_FRAMEWORK = {
-    "DEFAULT_VERSIONING_CLASS": "rest_framework.versioning.URLPathVersioning",
-    "VERSION_PARAM":"version",
-    "DEFAULT_VERSION":'v1',
-    "ALLOWED_VERSIONS":['v1','v2'],
+    # "DEFAULT_VERSIONING_CLASS": "rest_framework.versioning.URLPathVersioning",
+    # "VERSION_PARAM":"version",
+    # "DEFAULT_VERSION":'v1',
+    # "ALLOWED_VERSIONS":['v1','v2'],
     # "UNAUTHENTICATED_USER":None,
     # "UNAUTHENTICATED_TOKEN":None,
     # # "DEFAULT_AUTHENTICATION_CLASSES":[

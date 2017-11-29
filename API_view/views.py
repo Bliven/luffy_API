@@ -200,8 +200,8 @@ class ShoppingCart(views.APIView):
 
         ret = {"code": 1000, "msg": None}
         user_id = request.user.id
-        course_id = request.POST.get('course_id')
-        pricepolicy_id = request.POST.get('pricepolicy_id')
+        course_id = request.data.get('course_id')
+        pricepolicy_id = request.data.get('pricepolicy_id')
 
         # try:
         pricepolicy_obj = models.PricePolicy.objects.filter(pk=pricepolicy_id).first()

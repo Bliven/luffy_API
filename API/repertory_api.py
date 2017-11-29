@@ -73,10 +73,14 @@ class MyCharField(serializers.CharField):
 info=MyCharField()
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 def func(self,obj):
 =======
 def func(*args,**kwargs):
 >>>>>>> 11.29
+=======
+def func(self,obj):
+>>>>>>> 完成了数据提取
     return '66666'
 data_l =models.Account.objects.all()
 
@@ -170,6 +174,7 @@ class Search(object):
             if not isinstance(data,QuerySet):
                 data = md_obj.objects.all()
 
+            # print(type(data))
             ModelSerializer = self.__gen_serilizer(md_obj,fields=fields,
                                                    extra_fields=extra_fields,
                                                    extra_fields_info=extra_fields_info,

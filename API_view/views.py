@@ -1,4 +1,5 @@
 from django.shortcuts import render
+from API.repertory_api import search
 
 # Create your views here.
 from django.contrib.auth.hashers import make_password, check_password
@@ -39,8 +40,8 @@ class AuthView(views.APIView):
         user = request.data.get("user")
         pwd = request.data.get("pwd")
         # password = make_password(pwd)
-        user_obj = models.UserInfo.objects.filter(user=user).first()
-        check_pwd = check_password(pwd, user_obj.pwd)
+        user_obj = models.Account.objects.filter(user=user).first()
+        check_pwd = check_password(pwd, user_obj.password)
         if check_pwd:
             tk = gen_token(user)
             models.Token.objects.get_or_create(user=user_obj, defaults={"token": tk})
@@ -130,14 +131,31 @@ class Course(views.APIView):
         return JsonResponse(course_data)
 
 
-class create_password(views.APIView):
-    def post(self, request, *args, **kwargs):
-        user = request.data.get("user")
-        pwd = request.data.get("pwd")
-        email = request.data.get("email")
-        password = make_password(pwd)
-        models.UserInfo.objects.create(user=user, pwd=password, email=email)
-        return JsonResponse("OK", safe=False)
+# class create_password(views.APIView):
+#     def post(self, request, *args, **kwargs):
+#         user = request.data.get("user")
+#         pwd = request.data.get("pwd")
+#         email = request.data.get("email")
+#         password = make_password(pwd)
+#         models.Account.objects.create(user=user, pwd=password, email=email)
+#         return JsonResponse("OK", safe=False)
+#
+#     def get(self, request, *args, **kwargs):
+#         pass
 
-    def get(self, request, *args, **kwargs):
+class OrderClear(views.APIView):
+    def post(self, request, *args, **kwargs):
         pass
+    def get_data(self, request, *args, **kwargs):
+        res = []
+        for course in request.data:
+            id = course.get('course_id')
+            if id :
+                res.append(id)
+        data_list = models.Course.objects.filter(id__in=res)
+        data = search.instance_serilize(instance='Course',data=data_list,
+                                        fields=['id','name','course_img','price_policy'],
+                                        extra_fields=['PricePolicy_price','PricePolicy_valid_period'],
+                                        extra_fields_info=['price_policy.price','price_policy.get_valid_period_display'],
+                                        )
+        return data

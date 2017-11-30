@@ -25,7 +25,10 @@ SECRET_KEY = 'q4&c_ge-&*0bw65-2nc%#d)ln&!x%ih20_b$wf0tgzjqvl7m=d'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+
+ALLOWED_HOSTS = ["*"]
+
+
 
 
 # Application definition
@@ -133,18 +136,35 @@ CORS_ALLOW_CREDENTIALS = True
 
 STATIC_URL = '/static/'
 REST_FRAMEWORK = {
+
     "DEFAULT_VERSIONING_CLASS": "rest_framework.versioning.URLPathVersioning",
     "VERSION_PARAM":"version",
     "DEFAULT_VERSION":'v1',
     "ALLOWED_VERSIONS":['v1','v2'],
-    # "UNAUTHENTICATED_USER":None,
-    # "UNAUTHENTICATED_TOKEN":None,
+    "UNAUTHENTICATED_USER":None,
+    "UNAUTHENTICATED_TOKEN":None,
+
     # # "DEFAULT_AUTHENTICATION_CLASSES":[
     # #     #"app01.views.CustomAuthentication",
     # # ],
+
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        'API_view.util.authen.authen.MyAuthentication',
+    ],
+
     # "DEFAULT_THROTTLE_RATES":{
     #     "DNF_anon":"5/m",
     #     "DNF_user":"10/m",
     # }
 
 }
+# CACHES = {
+#     "default": {
+#         "BACKEND": "django_redis.cache.RedisCache",
+#         "LOCATION": "redis://65.49.195.128:6379/1",
+#         "OPTIONS": {
+#             "CLIENT_CLASS": "django_redis.client.DefaultClient",
+#             "CONNECTION_POOL_KWARGS": {"max_connections": 100},
+#         }
+#     }
+# }

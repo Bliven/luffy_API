@@ -9,14 +9,6 @@ class Token(models.Model):
     user = models.OneToOneField("Account")
     token = models.CharField(max_length=64)
 
-from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
-from django.contrib.contenttypes.models import ContentType
-from django.db.models import Q
-from django.utils.safestring import mark_safe
-from django.db import models
-import hashlib
-
-
 class CourseCategory(models.Model):
     """课程大类, e.g 前端  后端..."""
     name = models.CharField(max_length=64, unique=True)
@@ -71,7 +63,7 @@ class Scholarship(models.Model):
     def __str__(self):
         return "%s:%s" % (self.degree_course, self.value)
 
-
+# *****
 class Course(models.Model):
     """课程"""
     name = models.CharField(max_length=128, unique=True)
@@ -378,7 +370,7 @@ class ScoreRule(models.Model):
     class Meta:
         unique_together = ('rule', 'score_type')
 
-
+# *****
 class ScoreRecord(models.Model):
     """积分奖惩记录"""
     content_type = models.ForeignKey(ContentType, blank=True, null=True)
@@ -502,7 +494,7 @@ class EnrolledDegreeCourse(models.Model):
     class Meta:
         unique_together = ('account', 'degree_course')
 
-
+# *****
 class Coupon(models.Model):
     """优惠券生成规则"""
     name = models.CharField(max_length=64, verbose_name="活动名称")
@@ -555,7 +547,7 @@ class CouponRecord(models.Model):
     # def __str__(self):
     #     return '%s-%s-%s' % (self.account, self.number, self.status)
 
-
+# *****
 class Order(models.Model):
     """订单"""
     payment_type_choices = ((0, '微信'), (1, '支付宝'), (2, '优惠码'), (3, '贝里'))
@@ -835,7 +827,7 @@ class MentorGroup(models.Model):
     def __str__(self):
         return self.name
 
-
+# *****
 class Account(models.Model):
     username = models.CharField("用户名", max_length=64, unique=True)
     email = models.EmailField(

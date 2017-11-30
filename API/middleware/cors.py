@@ -1,14 +1,10 @@
-#! /usr/bin/env python
-# -*- coding: utf-8 -*-
-# __author__ = "NiuBin"
-# Date: 2017/11/26
-
 import re
 from django.conf import settings
 from django.shortcuts import HttpResponse
 from django.utils.safestring import mark_safe
-
 import json
+
+
 class MiddlewareMixin(object):
     def __init__(self, get_response=None):
         self.get_response = get_response

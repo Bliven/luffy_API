@@ -157,19 +157,19 @@ class OrderClear(views.APIView):
         ret = {"code": 1000, "msg": None}
         try:
             # user_tk=request.query_params.get("tk")
-            user_obj = models.Account.objects.filter(pk=request.user.id).first()
+            # user_obj = models.Account.objects.filter(pk=request.user.id).first()
+            user_obj = models.Account.objects.filter(pk=1).first()
             if user_obj:
                 obj=rediser.get('goods_list', user_obj.id).decode("utf-8")     # 取 购物车 优惠券数据
                 goods = json.loads(obj)
                 ret["data"] = self.get_data(goods, request)
-                rediser.set('OrderClear', request.user.id, ret["data"])
-                # print(rediser.get('OrderClear', request.user.id, ).decode("utf-8"), '-----------------')
-                # print(type(ret["data"]), '-----------------')  # str
+                rediser.set('OrderClear', request.user.id, json.dumps(ret["data"]))
+                print(json.loads(rediser.get('OrderClear', request.user.id, ).decode("utf-8")), '-----------------')
         except Exception as e:
             print(e)
             ret["msg"]="没有该数据"
             ret["code"]=1001
-        return Response(ret)
+        return JsonResponse(ret)
 
     # def post(self, request, *args, **kwargs):
     #     order = request.data
@@ -215,14 +215,15 @@ class OrderClear(views.APIView):
 
         def func_pp(self, obj):  # price_policy 查询使用
             price_p = obj.price_policy.all()
-            try:
-                for l in goods:
-                    if l['course_id'] == obj.id:
-                        plc_obj = price_p.get(id=l["policy_id"])
+            for l in goods:
+                if int(l['course_id']) == obj.id:
+                    try:
+                        plc_obj = price_p.get(id=int(l["policy_id"]))
                         re = {'id': plc_obj.id, 'price': plc_obj.price, 'valid_period': plc_obj.valid_period}
                         return re
-            except TypeError as e:
-                print('price_policy 查询----', e)
+                    except ObjectDoesNotExist as e:
+                        print(e,'price_policy 查询----',l)
+                        continue
 
         def func_coupon(self, obj):  # coupon 查询使用
             course_coupon = obj.coupon.all()
@@ -248,16 +249,28 @@ class OrderClear(views.APIView):
                                         fields=['id', 'name', 'course_img', 'price_policy', 'course_coupon', ],
                                         serializerMDF={'price_policy': func_pp, 'course_coupon': func_coupon,}
                                         )
-        for course_info in data:
+
+        course_info=0                   # course_info 是 data 里 课程信息的索引
+        while course_info < len(data):
             try:
-                cp_l = course_info.get('course_coupon')
-                course_info['course_coupon'] = {}
+                if not data[course_info].get('price_policy'):
+                    if course_info+1 < len(data):
+                        data[course_info] = data[course_info+1]
+                    else:
+                        data.pop(course_info)
+                        continue
+                cp_l = data[course_info].get('course_coupon')
+                data[course_info]['course_coupon'] = {}
                 for cp in cp_l:
-                    course_info['course_coupon'][str(cp.get('id'))] = cp
+                    data[course_info]['course_coupon'][str(cp.get('id'))] = cp
+                course_info+=1
             except TypeError as e:
                 print('返回数据data----', e)
+                course_info+=1
+                continue
 
-        return json.dumps(user_info + data)
+        # print(data,'+++++++++')
+        return user_info + data
 
 
 class OrderCompute(views.APIView):

@@ -12,6 +12,7 @@ from rest_framework.exceptions import AuthenticationFailed
 class MyAuthentication(BaseAuthentication):
     def authenticate(self, request):
         tk = request.query_params.get('tk')
+        print(tk)
         # print(tk)
         token_obj = models.Token.objects.filter(token=tk).first()
         # print(token_obj,'token_objtoken_objtoken_objtoken_obj')

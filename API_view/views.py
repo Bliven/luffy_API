@@ -5,7 +5,7 @@ from rest_framework import views, serializers, fields
 from rest_framework.response import Response
 from django.core.exceptions import ObjectDoesNotExist
 from API import models
-
+import json
 
 
 def gen_token(username):
@@ -145,108 +145,126 @@ class RedisHelper(object):
 rediser= RedisHelper()
 
 
+
 class OrderClear(views.APIView):
+    pass
 
-    def get(self,request,*args,**kwargs):
-        import json
-        ret={"code":1000,"msg":None}
-        try:
-            # user_tk=request.query_params.get("tk")
-            print(request.user.id)
-            user_obj = models.Account.objects.filter(pk=request.user.id).first()
-            if user_obj:
-                obj=rediser.get("shopping_cart",request.user.id).decode("utf-8")
-                ret["data"]=json.loads(obj)
-        except Exception as e:
-            ret["msg"]="没有该数据"
-            ret["code"]=1001
-        return Response(ret)
 
-    def verify(self,data):
-        ret={"code"}
-        for i in data:
-            obj = models.Course.objects.filter(id=i["course_id"]).first()
-            if obj:
-                if obj.price_policy.get(id=i["policy_id"]):
-
-                    return True
-
-    def get_data(self):
-        pass
 
 class OrderCompute(views.APIView):
     def get(self,request,*args,**kwargs):
-        order_data={
-            "goods":[
-                {
-                    "course_id": 1,
-                    "policy_id": 3,
-                    "course_coupon":5
-                },
-                # {
-                #     "course_id": 2,
-                #     "policy_id": 2,
-                #     "course_coupon": 2
-                # }
-            ],
-            "global_coupon":3,
-            "use_berry": True,
-            "money": 555
-        }
-        ret={"code":1000,"msg":None,"total_price":None,"berry_pay":False}
+        order_data=request.data.get()
+        # order_data = {
+        #     "goods": [
+        #         {
+        #             "course_id": 1,
+        #             "policy_id": 3,
+        #             "course_coupon": 3
+        #         },
+        #         # {
+        #         #     "course_id": 2,
+        #         #     "policy_id": 2,
+        #         #     "course_coupon": 2
+        #         # }
+        #     ],
+        #     "normal_coupon": "1",
+        #     "use_berry": True,
+        #     # "money": 555
+        # }
+
+        ret = {"code": 1000, "msg": None, "total_price": None, "berry_pay": False}
         func_list = ["ordinary_compute", "fullcut_compue", "discount_compute"]
 
 
         # 总价，最终的总价格
-        total_price = 0
-
         try:
-            for good_data in order_data["goods"]:
-                '''每个视频绑定的课程优惠券的处理'''
-                course_obj = models.Course.objects.get(id=good_data["course_id"])
-                if good_data["course_coupon"]:
-                    course_coupon_obj = models.CouponRecord.objects.get(number=good_data["course_coupon"],
-                                                                        account_id=request.user.id)
-                    course_price = course_obj.price_policy.get(id=good_data["policy_id"]).price
-                    if course_coupon_obj and course_coupon_obj.coupon.object_id:
-                        if hasattr(self, func_list[course_coupon_obj.coupon.coupon_type]):
-                            compute_func = getattr(self, func_list[course_coupon_obj.coupon.coupon_type])
-                            total_price += compute_func(course_coupon_obj, course_price)
+
+            # redis_data=rediser.get("OrderClear",request.user.id).decode("utf-8")
+            redis_data=rediser.get("OrderClear",1).decode("utf-8")
+            redis_data=json.loads(redis_data)
         except Exception as e:
-            ret["msg"]=e
-            ret["code"]=1001
+            ret["msg"]="redis server error"
+            ret["code"]=500
             return Response(ret)
 
-        # "全局优惠券计算"
+
+        # 课程优惠券计算
         try:
-            if order_data["global_coupon"]:
-                course_coupon_obj = models.CouponRecord.objects.get(number=order_data["global_coupon"],
-                                                                    account_id=request.user.id)
-                # print(course_coupon_obj.coupon.name)
-                if course_coupon_obj and not course_coupon_obj.coupon.object_id:
-                    if hasattr(self, func_list[course_coupon_obj.coupon.coupon_type]):
-                        compute_func = getattr(self, func_list[course_coupon_obj.coupon.coupon_type])
-                        total_price = compute_func(course_coupon_obj, total_price)
+            '''每个视频绑定的课程优惠券的处理'''
+
+            # 课程计数器
+            good_counter = -1
+
+            if not order_data.get("goods"):
+                raise Exception
+            goods_list = redis_data[1:]
+            for good_data in order_data.get("goods"):
+                # 课程、优惠券、价格策略验证
+                course_obj = None
+                course_coupon_obj = None
+                course_price = None
+                good_counter += 1
+
+                for good in goods_list:
+                    course_obj = good.get("id")
+                    if not course_obj:
+                        raise Exception
+                    if good_data["course_coupon"]:
+                        course_price = good.get("price_policy").get("price")
+                        course_coupon_obj = good.get("course_coupon").get(str(good_data["course_coupon"]))
+                        if course_coupon_obj and course_coupon_obj.get("object_id"):
+                            if hasattr(self, func_list[course_coupon_obj.get("coupon_type")]):
+                                compute_func = getattr(self, func_list[course_coupon_obj.get("coupon_type")])
+                                total_price = compute_func(course_coupon_obj, course_price)
+                                ret["total_price"] = total_price
         except Exception as e:
-            ret["msg"]=e
-            ret["code"] = 1001
+            if not order_data.get("goods"):
+                ret["msg"] = "订单异常，无任何商品"
+                ret["code"] = 1001
+            elif not course_obj:
+                # 商品唯一编号，这便是id
+                ret["msg"] = "订单异常，未找到对应订单商品的课程（商品id：%s）。" % order_data["goods"][good_counter]["course_id"]
+                ret["code"] = 1002
+            elif not course_price:
+                ret["msg"] = "订单异常，未找到对应订单商品的课程价格策略（商品id：%s）" % order_data["goods"][good_counter]["course_id"]
+                ret["code"] = 1003
+            else:
+                ret["msg"] = "订单异常，未找到对应订单商品的课程优惠券（商品id：%s）" % order_data["goods"][good_counter]["course_id"]
+                ret["code"] = 1004
             return Response(ret)
 
-        "贝里"
-        try:
-            if order_data["use_berry"]:
-                berry_balance=models.TransactionRecord.objects.get(account_id=request.user.id).balance
 
-                if berry_balance > 100 * total_price:
+        # 全局优惠券计算
+        try:
+            if order_data["normal_coupon"]:
+                # 全局优惠券校验
+                global_coupon_obj=None
+                normal_coupon_dict=redis_data[0].get("normal_coupon").get(order_data["normal_coupon"])
+                if normal_coupon_dict and not normal_coupon_dict.get("object_id"):
+                    if hasattr(self, func_list[normal_coupon_dict.get("coupon_type")]):
+                        compute_func = getattr(self, func_list[normal_coupon_dict.get("coupon_type")])
+                        total_price = compute_func(normal_coupon_dict, total_price)
+                        ret["total_price"]=total_price
+        except Exception as e:
+            ret["msg"]="订单异常，未找到该订单相关全局优惠券。"
+            ret["code"] = 1005
+            return Response(ret)
+
+
+        # 贝里计算
+        try:
+            if order_data["normal_coupon"]:
+                berry_balance = redis_data[0].get("score")
+                print(berry_balance)
+                if berry_balance > 100 * ret["total_price"]:
                     ret["berry_pay"]=True
                 else:
                     total_price-=berry_balance/100
                     ret["total_price"]=total_price
         except Exception as e:
-            ret["msg"]=e
-            ret["code"] = 1001
+            ret["msg"]="用户异常，未查询到当前用户的贝里信息。"
+            ret["code"] = 1006
             return Response(ret)
-
         return Response(ret)
 
     def course_coupon_compute(self,request,func_list,order_data):
@@ -269,22 +287,22 @@ class OrderCompute(views.APIView):
 
 
 
-    def ordinary_compute(self,coupon_obj,price):
+    def ordinary_compute(self,coupon_dict,price):
         ''' 普通券计算 '''
-        if price > coupon_obj.coupon.money_equivalent_value:
-            end_price=price-coupon_obj.coupon.money_equivalent_value
+        if price > coupon_dict.get("money_equivalent_value"):
+            end_price=price-coupon_dict.get("money_equivalent_value")
         else:
             end_price=0
         return end_price
 
-    def fullcut_compue(self,coupon_obj,price):
+    def fullcut_compue(self,coupon_dict,price):
         ''' 满减券计算 '''
-        if price > coupon_obj.coupon.minimum_consume:
-            end_price=price-coupon_obj.coupon.money_equivalent_value
+        if price > coupon_dict.get("minimum_consume"):
+            end_price=price-coupon_dict.get("money_equivalent_value")
         else:
             end_price=price
         return end_price
-    def discount_compute(self,coupon_obj,price):
+    def discount_compute(self,coupon_dict,price):
         ''' 折扣券计算 '''
-        end_price=price*coupon_obj.coupon.off_percent/100
+        end_price=price*coupon_dict.get("off_percent")/100
         return end_price

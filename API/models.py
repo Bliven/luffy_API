@@ -762,7 +762,6 @@ class Tags(models.Model):
     def __str__(self):
         return self.name
 
-
 class TransactionRecord(models.Model):
     """贝里交易纪录"""
     account = models.ForeignKey("Account")

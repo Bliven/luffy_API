@@ -18,9 +18,13 @@ from django.contrib import admin
 from API_view import views
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
-    url(r'^api/(?P<version>\w+)/course/$', views.Course.as_view(), name='course'),
-    url(r'^api/(?P<version>\w+)/course/(?P<pk>\d+)/$', views.Course.as_view(), name='course'),
+
 
     url(r'^api/(?P<version>\w+)/shoppingcart/$', views.ShoppingCart.as_view(), name='shoppingcart'),
+    url(r'^api/(?P<version>\w+)/auth/$', views.AuthView.as_view(), name='auth'),
+    url(r'^api/(?P<version>\w+)/course/$', views.Course.as_view(), name='course'),
+    url(r'^api/(?P<version>\w+)/course/(?P<pk>\d+)/$', views.Course.as_view(), name='course'),
+    url(r'^api/(?P<version>\w+)/orderclear/$', views.OrderClear.as_view(), name='orderclear'),
+    url(r'^api/(?P<version>\w+)/ordercompute/$', views.OrderCompute.as_view(), name='ordercompute'),
 
 ]

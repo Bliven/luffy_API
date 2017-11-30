@@ -22,4 +22,5 @@ urlpatterns = [
     url(r'^api/(?P<version>\w+)/course/$', views.Course.as_view(), name='course'),
     url(r'^api/(?P<version>\w+)/course/(?P<pk>\d+)/$', views.Course.as_view(), name='course'),
     url(r'^api/(?P<version>\w+)/orderclear/$', views.OrderClear.as_view(), name='orderclear'),
+    url(r'^api/(?P<version>\w+)/ordercompute/$', views.OrderCompute.as_view(), name='ordercompute'),
 ]

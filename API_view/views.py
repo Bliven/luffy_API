@@ -6,6 +6,7 @@ from django.forms.models import model_to_dict  # ^^^^^^
 # Create your views here.
 from django.http import JsonResponse
 from rest_framework import views, serializers, fields
+from rest_framework.response import Response
 from django.core.exceptions import ObjectDoesNotExist
 from API import models
 
@@ -134,7 +135,6 @@ class Course(views.APIView):
 class RedisHelper(object):
     def __init__(self):
         import redis
-
         pool = redis.ConnectionPool(host='65.49.195.128', port=6379)
         conn = redis.Redis(connection_pool=pool)
         self.conn = conn
@@ -153,25 +153,33 @@ rediser = RedisHelper()
 
 
 class OrderClear(views.APIView):
-    # def post(self,request,*args,**kwargs):  # -------------------------------------TTTTTTTTTTT
-    def get(self, request, *args, **kwargs):  # -------------------------------------TTTTTTTTTTT
-        goods = [{"course_id": 1, "policy_id": 1}, ]
-        self.verify(goods)
-        rediser.set('OrderClear', request.user.id, self.get_data(goods, request))
-        print(rediser.get('OrderClear', request.user.id, ), '-----------------')
-        return JsonResponse({'re': '666'})
+    def get(self, request, *args, **kwargs):
+        ret = {"code": 1000, "msg": None}
+        try:
+            # user_tk=request.query_params.get("tk")
+            user_obj = models.Account.objects.filter(pk=request.user.id).first()
+            if user_obj:
+                obj=rediser.get('goods_list', user_obj.id).decode("utf-8")     # 取 购物车 优惠券数据
+                goods = json.loads(obj)
+                ret["data"] = self.get_data(goods, request)
+                rediser.set('OrderClear', request.user.id, ret["data"])
+                # print(rediser.get('OrderClear', request.user.id, ).decode("utf-8"), '-----------------')
+                # print(type(ret["data"]), '-----------------')  # str
+        except Exception as e:
+            print(e)
+            ret["msg"]="没有该数据"
+            ret["code"]=1001
+        return Response(ret)
 
-    def post(self, request, *args, **kwargs):
-        order = request.data
-        order = [{'course_id': 1,
-                  'price_policy_id': 1,
-                  'coupon': {
-                      'normal_coupon': 2,
-                      'course_coupon': 3},
-                  'score': True}]
+    # def post(self, request, *args, **kwargs):
+    #     order = request.data
+    #     order = [{'course_id': 1,
+    #               'price_policy_id': 1,
+    #               'coupon': {
+    #                   'normal_coupon': 2,
+    #                   'course_coupon': 3},
+    #               'score': True}]
 
-    def verify(self, data):
-        pass
 
     def get_data(self, goods, request, *args, **kwargs):
         '''
@@ -193,7 +201,9 @@ class OrderClear(views.APIView):
                 d['open_date'] = str(d.get('open_date'))
                 d['close_date'] = str(d.get('close_date'))
                 normal_coupon_l.append(d)
-        user_info = [{'normal_coupon': normal_coupon_l}]
+        user_info = [{'normal_coupon': {}}]
+        for coupon_info in normal_coupon_l:
+            user_info[0]['normal_coupon'][str(coupon_info.get('id'))] = coupon_info
 
         # ------ 贝里 ----------
 
@@ -205,20 +215,26 @@ class OrderClear(views.APIView):
 
         def func_pp(self, obj):  # price_policy 查询使用
             price_p = obj.price_policy.all()
-            for l in goods:
-                if l['course_id'] == obj.id:
-                    plc_obj = price_p.get(id=l["policy_id"])
-                    re = {'id': plc_obj.id, 'price': plc_obj.price, 'valid_period': plc_obj.valid_period}
-                    return re
+            try:
+                for l in goods:
+                    if l['course_id'] == obj.id:
+                        plc_obj = price_p.get(id=l["policy_id"])
+                        re = {'id': plc_obj.id, 'price': plc_obj.price, 'valid_period': plc_obj.valid_period}
+                        return re
+            except TypeError as e:
+                print('price_policy 查询----', e)
 
         def func_coupon(self, obj):  # coupon 查询使用
             course_coupon = obj.coupon.all()
             course_cp_l = []
-            for cp_obj in course_coupon.filter(id__in=all_coupon_rd_qset.values_list('id')):  # 取课程特定优惠券
-                d = model_to_dict(cp_obj)
-                d['open_date'] = str(d.get('open_date'))
-                d['close_date'] = str(d.get('close_date'))
-                course_cp_l.append(d)
+            try:
+                for cp_obj in course_coupon.filter(id__in=all_coupon_rd_qset.values_list('id')):  # 取课程特定优惠券
+                    d = model_to_dict(cp_obj)
+                    d['open_date'] = str(d.get('open_date'))
+                    d['close_date'] = str(d.get('close_date'))
+                    course_cp_l.append(d)
+            except TypeError as e:
+                print('coupon 查询----', e)
             return course_cp_l
 
         res = []
@@ -232,38 +248,127 @@ class OrderClear(views.APIView):
                                         fields=['id', 'name', 'course_img', 'price_policy', 'course_coupon', ],
                                         serializerMDF={'price_policy': func_pp, 'course_coupon': func_coupon,}
                                         )
-        """
-        # 返回数据的大致格式
-        [
-            {"normal_coupon":
-                [
-                    {"id": 1, "name": "\\u6d4b\\u8bd5\\u901a\\u7528\\u52381",
-                     "brief": "\\u6d4b\\u8bd5\\u901a\\u7528\\u52381",
-                     "coupon_type": 0, "money_equivalent_value": 10, "off_percent": null, "minimum_consume": 0,
-                     "content_type": null, "object_id": null, "quantity": 10000000, "open_date": "2017-11-01",
-                     "close_date": "2018-06-01", "valid_begin_date": null, "valid_end_date": null,
-                     "coupon_valid_days": null},
+        for course_info in data:
+            try:
+                cp_l = course_info.get('course_coupon')
+                course_info['course_coupon'] = {}
+                for cp in cp_l:
+                    course_info['course_coupon'][str(cp.get('id'))] = cp
+            except TypeError as e:
+                print('返回数据data----', e)
 
-                    {"id": 2, "name": "\\u6d4b\\u8bd5\\u901a\\u7528\\u52382",
-                     "brief": "\\u6d4b\\u8bd5\\u901a\\u7528\\u52382",
-                     "coupon_type": 1, "money_equivalent_value": 10, "off_percent": null, "minimum_consume": 100,
-                     "content_type": null, "object_id": null, "quantity": 1000000, "open_date": "2017-11-01",
-                     "close_date": "2018-07-06", "valid_begin_date": null, "valid_end_date": null,
-                     "coupon_valid_days": null}
-                ],
-
-                "score": 100},
-
-            {"id": 1, "name": "21\\u5929\\u5b66\\u4f1apython", "course_img": "/src/assets/course-1.png",
-             "price_policy": {"id": 1, "price": 9.9, "valid_period": 30},
-             "course_coupon":
-                 [
-                     {"id": 3, "name": "\\u8bfe\\u7a0b\\u6d4b\\u8bd5\\u52381",
-                      "brief": "\\u8bfe\\u7a0b\\u6d4b\\u8bd5\\u52381", "coupon_type": 0, "money_equivalent_value": 20,
-                      "off_percent": null, "minimum_consume": 0, "content_type": 9, "object_id": 1, "quantity": 10,
-                      "open_date": "2017-11-29", "close_date": "2018-05-04", "valid_begin_date": null,
-                      "valid_end_date": null, "coupon_valid_days": null}
-                 ]}
-        ]
-        """
         return json.dumps(user_info + data)
+
+
+class OrderCompute(views.APIView):
+    def get(self, request, *args, **kwargs):
+        order_data = {
+            "goods": [
+                {
+                    "course_id": 1,
+                    "policy_id": 3,
+                    "course_coupon": 5
+                },
+                # {
+                #     "course_id": 2,
+                #     "policy_id": 2,
+                #     "course_coupon": 2
+                # }
+            ],
+            "global_coupon": 3,
+            "use_berry": True,
+            "money": 555
+        }
+        ret = {"code": 1000, "msg": None, "total_price": None, "berry_pay": False}
+        func_list = ["ordinary_compute", "fullcut_compue", "discount_compute"]
+
+        # 总价，最终的总价格
+        total_price = 0
+
+        try:
+            for good_data in order_data["goods"]:
+                '''每个视频绑定的课程优惠券的处理'''
+                course_obj = models.Course.objects.get(id=good_data["course_id"])
+                if good_data["course_coupon"]:
+                    course_coupon_obj = models.CouponRecord.objects.get(number=good_data["course_coupon"],
+                                                                        account_id=request.user.id)
+                    course_price = course_obj.price_policy.get(id=good_data["policy_id"]).price
+                    if course_coupon_obj and course_coupon_obj.coupon.object_id:
+                        if hasattr(self, func_list[course_coupon_obj.coupon.coupon_type]):
+                            compute_func = getattr(self, func_list[course_coupon_obj.coupon.coupon_type])
+                            total_price += compute_func(course_coupon_obj, course_price)
+        except Exception as e:
+            ret["msg"] = e
+            ret["code"] = 1001
+            return Response(ret)
+
+        # "全局优惠券计算"
+        try:
+            if order_data["global_coupon"]:
+                course_coupon_obj = models.CouponRecord.objects.get(number=order_data["global_coupon"],
+                                                                    account_id=request.user.id)
+                # print(course_coupon_obj.coupon.name)
+                if course_coupon_obj and not course_coupon_obj.coupon.object_id:
+                    if hasattr(self, func_list[course_coupon_obj.coupon.coupon_type]):
+                        compute_func = getattr(self, func_list[course_coupon_obj.coupon.coupon_type])
+                        total_price = compute_func(course_coupon_obj, total_price)
+        except Exception as e:
+            ret["msg"] = e
+            ret["code"] = 1001
+            return Response(ret)
+
+        "贝里"
+        try:
+            if order_data["use_berry"]:
+                berry_balance = models.TransactionRecord.objects.get(account_id=request.user.id).balance
+
+                if berry_balance > 100 * total_price:
+                    ret["berry_pay"] = True
+                else:
+                    total_price -= berry_balance / 100
+                    ret["total_price"] = total_price
+        except Exception as e:
+            ret["msg"] = e
+            ret["code"] = 1001
+            return Response(ret)
+
+        return Response(ret)
+
+    def course_coupon_compute(self, request, func_list, order_data):
+        total_price = 0
+        try:
+            for good_data in order_data["goods"]:
+                '''每个视频绑定的课程优惠券的处理'''
+                course_obj = models.Course.objects.get(id=good_data["course_id"])
+                if good_data["course_coupon"]:
+                    course_coupon_obj = models.CouponRecord.objects.get(number=good_data["course_coupon"],
+                                                                        account_id=request.user.id)
+                    course_price = course_obj.price_policy.get(id=good_data["policy_id"]).price
+                    if course_coupon_obj and course_coupon_obj.coupon.object_id:
+                        if hasattr(self, func_list[course_coupon_obj.coupon.coupon_type]):
+                            compute_func = getattr(self, func_list[course_coupon_obj.coupon.coupon_type])
+                            total_price += compute_func(course_coupon_obj, course_price)
+        except Exception as e:
+            print("a", e)
+        return total_price
+
+    def ordinary_compute(self, coupon_obj, price):
+        ''' 普通券计算 '''
+        if price > coupon_obj.coupon.money_equivalent_value:
+            end_price = price - coupon_obj.coupon.money_equivalent_value
+        else:
+            end_price = 0
+        return end_price
+
+    def fullcut_compue(self, coupon_obj, price):
+        ''' 满减券计算 '''
+        if price > coupon_obj.coupon.minimum_consume:
+            end_price = price - coupon_obj.coupon.money_equivalent_value
+        else:
+            end_price = price
+        return end_price
+
+    def discount_compute(self, coupon_obj, price):
+        ''' 折扣券计算 '''
+        end_price = price * coupon_obj.coupon.off_percent / 100
+        return end_price

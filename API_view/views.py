@@ -46,7 +46,7 @@ class AuthView(views.APIView):
         user_obj = models.Account.objects.filter(username=user, password=pwd).first()
         if user_obj:
             tk = gen_token(user)
-            models.Token.objects.get_or_create(user=user_obj, defaults={"token": tk})
+            models.Token.objects.update_or_create(user=user_obj, defaults={"token": tk})
             ret["code"] = 1001
             ret["user"] = user
             ret["token"] = tk
@@ -147,9 +147,33 @@ class PricePolicySerializer(serializers.ModelSerializer):
         model = models.PricePolicy
         fields = ['id', 'price', 'name']
 
+def goods_list(user_cart_list):
+    """
+    将
+    :param user_cart_list: 
+    :return: 
+    """
+    l = []
+    for item in user_cart_list:
+        dic = {'course_id':item, 'policy_id': user_cart_list[item]['pricepolicy_id']}
+        l.append(dic)
+    return l
+
+
+def policydict(pric_list):
+    dict = {}
+    for item in pric_list:
+
+        dict[item['id']] = {'id': item['id'], 'price': item['price'], 'name': item['name']}
+
+
+        # dict[item['id']]=list(item)
+    print(dict)
+    return dict
+
 
 class ShoppingCart(views.APIView):
-    authentication_classes = [MyAuthentication, ]
+    # authentication_classes = [MyAuthentication, ]
 
     def get(self, request, *args, **kwargs):
         """
@@ -161,12 +185,14 @@ class ShoppingCart(views.APIView):
         """
         user_id = request.user.id
         print(user_id)
-        user_cart_list = rediser.get('shopping_list', user_id)
-        if user_cart_list:
+        print(type(user_id))
 
+        user_cart_list = rediser.get('shopping_list', user_id)
+
+        if user_cart_list:
             user_cart_list = json.loads(user_cart_list.decode('utf-8'))
 
-            return JsonResponse(user_cart_list)
+            return JsonResponse(user_cart_list,safe=False)
         else:
             return HttpResponse('为空')
 
@@ -179,7 +205,6 @@ class ShoppingCart(views.APIView):
         :param kwargs: 
         :return: 
         """
-
         ret = {"code": 1000, "msg": None}
         user_id = request.user.id
         course_id = request.data.get('course_id')
@@ -194,26 +219,24 @@ class ShoppingCart(views.APIView):
             """
             pricepolicy_list = course_obj.price_policy.all()
             pricepolicy_list = PricePolicySerializer(instance=pricepolicy_list, many=True)
+
             dic = {'name': course_obj.name,
                     'img': course_obj.course_img,
                     'pricepolicy_id': pricepolicy_id,
                     'price':pricepolicy_obj.price,
-                    'policy_list': list(pricepolicy_list.data)
+                    'policy_dic': policydict(pricepolicy_list.data)
              }
 
-            user_car_dict = rediser.get('shopping_list', user_id)
-            if user_car_dict:
-                user_car_dict = json.loads(user_car_dict.decode('utf-8'))
-                user_car_dict[course_id] = dic
+            user_cart_dict = rediser.get('shopping_list', user_id)
+            if user_cart_dict:
+                user_cart_dict = json.loads(user_cart_dict.decode('utf-8'))
+                user_cart_dict[course_id] = dic
             else:
-                user_car_dict = {
+                user_cart_dict = {
                     course_id: dic
                 }
-
-            rediser.set('shopping_list', request.user.id, json.dumps(user_car_dict))
-            user_cart_list = rediser.get('shopping_list', user_id)
-            print(user_cart_list)
-
+            rediser.set('shopping_list', request.user.id, json.dumps(user_cart_dict))
+            rediser.set('goods_list', request.user.id, json.dumps(goods_list(user_cart_dict)))
             ret['msg'] = '添加成功'
         else:
             ret['code'] = 1001
@@ -242,19 +265,16 @@ class ShoppingCart(views.APIView):
             user_cart_dict.pop(id)
         elif kind == 'many':
             for item in id:
-                print(item)
                 user_cart_dict.pop(item)
         elif kind == 'both':
-            print('666666666666666666666666666666666666666')
-            print(kind)
-            print(user_id)
-            print(type(user_id))
             rediser.delete('shopping_list', str(user_id))
+            rediser.delete('goods_list', str(user_id))
         else:
             ret['code'] = 1001
             ret['msg'] = '购物车删除失败!,参数错误'
             return JsonResponse(ret)
         rediser.set('shopping_list', user_id, json.dumps(user_cart_dict))
+        rediser.set('goods_list', user_id, json.dumps(goods_list(user_cart_dict)))
         ret['msg'] = '删除成功'
 
         return JsonResponse(ret)
@@ -283,6 +303,7 @@ class ShoppingCart(views.APIView):
             if user_cart_dict.get(course_id):
                 user_cart_dict[course_id]['pricepolicy_id'] = pricepolicy_id
                 rediser.set('shopping_list', user_id, json.dumps(user_cart_dict))
+                rediser.set('goods_list', user_id, json.dumps(goods_list(user_cart_dict)))
                 ret['msg'] = '修改成功'
 
             else:

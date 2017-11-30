@@ -27,3 +27,4 @@ class RedisHelper(object):
 rediser= RedisHelper()
 
 # rediser.delete('shopping_list', 1)
+# rediser.delete('goods_list', 1)

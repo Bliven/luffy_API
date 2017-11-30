@@ -16,6 +16,7 @@ class MyAuthentication(BaseAuthentication):
         token_obj = models.Token.objects.filter(token=tk).first()
         # print(token_obj,'token_objtoken_objtoken_objtoken_obj')
         if token_obj:
+            print(request.META['REMOTE_ADDR'])
             return (token_obj.user, token_obj)
         else:
             raise exceptions.AuthenticationFailed("用户认证失败")

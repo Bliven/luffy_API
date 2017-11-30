@@ -5,7 +5,7 @@
 from rest_framework import exceptions
 from rest_framework.authentication import BaseAuthentication
 from API import models
-
+from rest_framework.exceptions import AuthenticationFailed
 
 
 #############认证相关###########
@@ -18,7 +18,8 @@ class MyAuthentication(BaseAuthentication):
         if token_obj:
             return (token_obj.user, token_obj)
         else:
-            return (None,None)
+            raise exceptions.AuthenticationFailed("用户认证失败")
+
 
     def authenticate_header(self, request):
         pass

@@ -20,10 +20,10 @@ class RedisHelper(object):
     def delete(self, name, k):
         self.conn.hdel(name, k)
 
-    def get(self,name, k):
+    def get(self, name, k):
         return self.conn.hget(name, k)
 
 
 rediser= RedisHelper()
-# rediser.delete('shopping_list', 1)
 
+# rediser.delete('shopping_list', 1)

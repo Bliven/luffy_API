@@ -26,6 +26,7 @@ def gen_token(username):
 
 
 class AuthView(views.APIView):
+    authentication_classes = []
     """
     用户认证类，已经在中间件解决CORS跨域问题！
     """
@@ -132,26 +133,6 @@ class Course(views.APIView):
         return JsonResponse(course_data)
 
 
-class Create_password(views.APIView):
-    def post(self, request, *args, **kwargs):
-        user = request.data.get("user")
-        pwd = request.data.get("course_id")
-        email = request.data.get("pricePolicy_id")
-        password = make_password(pwd)
-        models.Account.objects.create(user=user, pwd=password, email=email)
-        return JsonResponse("OK", safe=False)
-
-
-class OrderClear(views.APIView):
-    def post(self, request, *args, **kwargs):
-        goods = [{"course_id": 1, "policy_id": 1}, {"course_id": 2, "policy_id": 2}]
-        self.verify(goods)
-
-    def verify(self, data):
-        pass
-
-    def get_data(self):
-        pass
 
 
 #######################购物车相关##############
@@ -264,9 +245,11 @@ class ShoppingCart(views.APIView):
                 print(item)
                 user_cart_dict.pop(item)
         elif kind == 'both':
+            print('666666666666666666666666666666666666666')
             print(kind)
             print(user_id)
-            rediser.delete('shopping_list', user_id)
+            print(type(user_id))
+            rediser.delete('shopping_list', str(user_id))
         else:
             ret['code'] = 1001
             ret['msg'] = '购物车删除失败!,参数错误'
